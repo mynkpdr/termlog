@@ -12,6 +12,7 @@ let
         (package.override {
           rust = rust.override {
             extensions = [
+              "rustfmt"
               "rust-src"
               "rust-analyzer"
               "clippy"
