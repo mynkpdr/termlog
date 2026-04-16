@@ -15,6 +15,7 @@ use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use tokio_tungstenite::tungstenite::protocol::CloseFrame;
 use tokio_tungstenite::tungstenite::{self, ClientRequestBuilder, Message};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info};
 
 use crate::alis;
@@ -32,7 +33,7 @@ pub async fn forward<N: Notifier>(
     url: url::Url,
     subscriber: Subscriber,
     mut notifier: N,
-    shutdown_token: tokio_util::sync::CancellationToken,
+    shutdown_token: CancellationToken,
 ) -> anyhow::Result<()> {
     info!("forwarding to {url}");
     let mut reconnect_attempt = 0;
