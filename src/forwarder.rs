@@ -22,11 +22,11 @@ use crate::api;
 use crate::notifier::Notifier;
 use crate::stream::{Event, Subscriber};
 
-const PING_INTERVAL: u64 = 15;
-const PING_TIMEOUT: u64 = 10;
-const SEND_TIMEOUT: u64 = 10;
-const RECONNECT_DELAY_BASE: u64 = 500;
-const RECONNECT_DELAY_CAP: u64 = 10_000;
+const PING_INTERVAL: Duration = Duration::from_secs(15);
+const PING_TIMEOUT: Duration = Duration::from_secs(10);
+const SEND_TIMEOUT: Duration = Duration::from_secs(10);
+const RECONNECT_DELAY_BASE_MS: u64 = 500;
+const RECONNECT_DELAY_CAP_MS: u64 = 10_000;
 
 pub async fn forward<N: Notifier>(
     url: url::Url,
@@ -192,7 +192,7 @@ where
 
             ping = pings.next() => {
                 send_with_timeout(&mut sink, ping.unwrap()).await??;
-                ping_timeout = Box::pin(time::sleep(Duration::from_secs(PING_TIMEOUT)));
+                ping_timeout = Box::pin(time::sleep(PING_TIMEOUT));
             }
 
             _ = &mut ping_timeout => bail!("ping timeout"),
@@ -223,7 +223,7 @@ async fn send_with_timeout(
     sink: &mut SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
     message: Message,
 ) -> anyhow::Result<Result<(), tungstenite::Error>> {
-    time::timeout(Duration::from_secs(SEND_TIMEOUT), sink.send(message))
+    time::timeout(SEND_TIMEOUT, sink.send(message))
         .await
         .map_err(|_| anyhow!("send timeout"))
 }
@@ -249,7 +249,7 @@ fn handle_close_frame(frame: Option<CloseFrame>) -> anyhow::Result<()> {
 fn exponential_delay(attempt: usize) -> u64 {
     let mut rng = rand::rng();
     let attempt = attempt.min(10);
-    let exp = (RECONNECT_DELAY_BASE * 2_u64.pow(attempt as u32)).min(RECONNECT_DELAY_CAP);
+    let exp = (RECONNECT_DELAY_BASE_MS * 2_u64.pow(attempt as u32)).min(RECONNECT_DELAY_CAP_MS);
 
     rng.random_range((exp / 2)..exp)
 }
@@ -269,7 +269,7 @@ fn close_message() -> Message {
 }
 
 fn ping_stream() -> impl Stream<Item = Message> {
-    IntervalStream::new(time::interval(Duration::from_secs(PING_INTERVAL)))
+    IntervalStream::new(time::interval(PING_INTERVAL))
         .skip(1)
         .map(|_| Message::Ping(vec![].into()))
 }
