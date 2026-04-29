@@ -25,17 +25,41 @@ asciinema runs on GNU/Linux, macOS and FreeBSD.
 
 Notable features:
 
-- recording and replaying of sessions inside a terminal,
+- recording of terminal sessions to a file, with optional [keyboard input
+  capture](https://docs.asciinema.org/manual/cli/quick-start/) and configurable
+  environment variable capture,
+- replaying of recordings inside a terminal, with adjustable speed, looping,
+  idle time limiting, step-by-step navigation,
+  pause-on-[markers](https://docs.asciinema.org/manual/cli/markers/), and
+  optional terminal auto-resize,
 - local and remote [live
   streaming](https://docs.asciinema.org/manual/cli/quick-start/#stream-a-terminal-session)
-  of terminal sessions to multiple viewers in real-time,
-- [lightweight recording
-  format](https://docs.asciinema.org/manual/asciicast/v3/), which is highly
-  compressible (down to 15% of the original size e.g. with `zstd` or `gzip`),
+  of terminal sessions to multiple viewers in real-time, including a built-in
+  HTTP server with an embedded web player for LAN/localhost viewing,
+- combined sessions: record to a file while streaming locally and remotely at
+  the same time,
+- [lightweight asciicast recording
+  format](https://docs.asciinema.org/manual/asciicast/v3/), highly compressible
+  (8% of the original size on average),
+- conversion from asciicast v1/v2/v3 to asciicast v2/v3, raw terminal output,
+  or plain text,
+- concatenation of multiple recordings into one, with timing adjusted
+  automatically,
+- mid-session controls: pause/resume capture and add markers on the fly via
+  [customizable key bindings](https://docs.asciinema.org/manual/cli/configuration/),
+- session metadata capture, including terminal size, terminal theme, command,
+  and title,
+- configuration file support for defaults such as recording command, capture
+  options, playback speed, idle time limit, notifications, and key bindings,
+- headless mode, configurable terminal window size, and exit-status propagation
+  for scripted and CI-friendly recording and streaming,
+- support for stdin/stdout in conversion and playback from local files, stdin,
+  or HTTP(S) URLs,
 - integration with [asciinema
   server](https://docs.asciinema.org/manual/server/), e.g.
-  [asciinema.org](https://asciinema.org), for easy recording hosting and live
-  streaming.
+  [asciinema.org](https://asciinema.org), for uploads, hosting, remote live
+  streaming, self-hosted servers, visibility control, descriptions, and
+  synchronized audio URLs.
 
 To record a session run this command in your shell:
 
