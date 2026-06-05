@@ -1,6 +1,7 @@
 mod alis;
 mod api;
 mod asciicast;
+mod audit;
 mod cli;
 mod cmd;
 mod config;
@@ -61,7 +62,7 @@ fn main() -> ExitCode {
                 audio_url: None,
                 description: None,
                 visibility: None,
-                env: vec!["ASCIINEMA_REC=1".to_owned()],
+                env: vec!["ASCIINEMA_REC=1".to_owned(), "TERMLOG_AUDIT=1".to_owned()],
             };
 
             cmd.run().report()
@@ -96,6 +97,10 @@ fn main() -> ExitCode {
 
         Commands::Session(cmd) => cmd.run().report(),
         Commands::Play(cmd) => cmd.run().report(),
+        Commands::Login(cmd) => cmd.run().report(),
+        Commands::Logout(cmd) => cmd.run().report(),
+        Commands::Whoami(cmd) => cmd.run().report(),
+        Commands::Verify(cmd) => cmd.run().report(),
         Commands::Cat(cmd) => cmd.run().report(),
         Commands::Convert(cmd) => cmd.run().report(),
         Commands::Upload(cmd) => cmd.run().report(),

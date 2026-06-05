@@ -8,7 +8,7 @@ pub const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:0";
 
 #[derive(Debug, Parser)]
 #[clap(author, version, about)]
-#[command(name = "asciinema", max_term_width = 100, infer_subcommands = true)]
+#[command(name = "termlog", max_term_width = 100, infer_subcommands = true)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -41,22 +41,22 @@ pub enum Commands {
         long_about,
         after_help = "\x1b[1;4mExamples\x1b[0m:
 
-  asciinema rec demo.cast
+  termlog rec demo.cast
       Records a shell session to a file
 
-  asciinema rec --command \"python script.py\" demo.cast
+  termlog rec --command \"python script.py\" demo.cast
       Records execution of a Python script
 
-  asciinema rec --idle-time-limit 2 demo.cast
+  termlog rec --idle-time-limit 2 demo.cast
       Records with idle time capped at 2 seconds
 
-  asciinema rec --capture-input --title \"API Demo\" demo.cast
+  termlog rec --capture-input --title \"API Demo\" demo.cast
       Records with keyboard input and sets a title
 
-  asciinema rec --append demo.cast
+  termlog rec --append demo.cast
       Continues recording to an existing file
 
-  asciinema rec demo.txt
+  termlog rec demo.txt
       Records as a plain-text log - output format inferred from the .txt extension"
     )]
     Record(Record),
@@ -74,22 +74,22 @@ pub enum Commands {
         long_about,
         after_help = "\x1b[1;4mExamples\x1b[0m:
 
-  asciinema stream --local
+  termlog stream --local
       Streams a shell session via the local HTTP server listening on an ephemeral port on 127.0.0.1
 
-  asciinema stream --local 0.0.0.0:8080
+  termlog stream --local 0.0.0.0:8080
       Streams via the local HTTP server listening on port 8080 on all network interfaces
 
-  asciinema stream --remote
+  termlog stream --remote
       Streams via an asciinema server for public viewing
 
-  asciinema stream -l -r
+  termlog stream -l -r
       Streams both locally and remotely simultaneously
 
-  asciinema stream -r --command \"ping asciinema.org\"
+  termlog stream -r --command \"ping asciinema.org\"
       Streams execution of the ping command
 
-  asciinema stream -r <ID> -t \"Live coding\"
+  termlog stream -r <ID> -t \"Live coding\"
       Streams via a remote server, reusing the existing stream ID and setting the stream title"
     )]
     Stream(Stream),
@@ -107,22 +107,22 @@ pub enum Commands {
         long_about,
         after_help = "\x1b[1;4mExamples\x1b[0m:
 
-  asciinema session --output-file demo.cast --stream-local
+  termlog session --output-file demo.cast --stream-local
       Records a shell session to a file and streams it via the local HTTP server listening on an ephemeral port on 127.0.0.1
 
-  asciinema session -o demo.cast --stream-remote
+  termlog session -o demo.cast --stream-remote
       Records to a file and streams via an asciinema server for public viewing
 
-  asciinema session --stream-local --stream-remote
+  termlog session --stream-local --stream-remote
       Streams both locally and remotely simultaneously, without saving to a file
 
-  asciinema session -o demo.cast -l -r -t \"Live coding\"
+  termlog session -o demo.cast -l -r -t \"Live coding\"
       Records + streams locally + streams remotely, setting the title of the recording/stream
 
-  asciinema session -o demo.cast --idle-time-limit 1.5
+  termlog session -o demo.cast --idle-time-limit 1.5
       Records to a file with idle time capped at 1.5 seconds
 
-  asciinema session -o demo.cast -l 0.0.0.0:9000 -r <ID>
+  termlog session -o demo.cast -l 0.0.0.0:9000 -r <ID>
       Records + streams locally on port 9000 + streams remotely, reusing existing stream ID"
     )]
     Session(Session),
@@ -140,22 +140,38 @@ pub enum Commands {
         long_about,
         after_help = "\x1b[1;4mExamples\x1b[0m:
 
-  asciinema play demo.cast
+  termlog play demo.cast
       Plays back a local recording file once
 
-  asciinema play --speed 2.0 --loop demo.cast
+  termlog play --speed 2.0 --loop demo.cast
       Plays back at double speed in a loop
 
-  asciinema play --idle-time-limit 2 demo.cast
+  termlog play --idle-time-limit 2 demo.cast
       Plays back with idle time capped at 2 seconds
 
-  asciinema play https://asciinema.org/a/569727
+  termlog play https://asciinema.org/a/569727
       Plays back directly from a URL
 
-  asciinema play --pause-on-markers demo.cast
+  termlog play --pause-on-markers demo.cast
       Plays back, pausing automatically at every marker"
     )]
     Play(Play),
+
+    /// Log in with Google for audited local recordings.
+    #[clap(about = "Log in with Google", long_about)]
+    Login(Login),
+
+    /// Log out and remove cached Google credentials.
+    #[clap(about = "Log out", long_about)]
+    Logout(Logout),
+
+    /// Show the currently cached Google identity.
+    #[clap(about = "Show logged-in Google identity", long_about)]
+    Whoami(Whoami),
+
+    /// Verify a local recording and receipt.
+    #[clap(about = "Verify a termlog recording proof", long_about)]
+    Verify(Verify),
 
     /// Upload a recording to an asciinema server.
     ///
@@ -167,6 +183,7 @@ pub enum Commands {
     ///
     /// Creates a user account link between your local CLI and an asciinema server account. Optional for uploading with the upload command, required for remote streaming with the stream and session commands.
     #[clap(
+        hide = true,
         about = "Authenticate this CLI with an asciinema server account",
         long_about
     )]
@@ -177,16 +194,16 @@ pub enum Commands {
     /// Combines two or more asciicast files in sequence, adjusting timing so each recording plays immediately after the previous one ends. Useful for creating longer recordings from multiple shorter sessions.
     ///
     /// Note: in asciinema 2.x this command used to print raw terminal output for a given session
-    /// file. If you're looking for this behavior then use `asciinema convert -f raw <FILE> -` instead.
+    /// file. If you're looking for this behavior then use `termlog convert -f raw <FILE> -` instead.
     #[clap(
         about = "Concatenate multiple recordings",
         long_about,
         after_help = "\x1b[1;4mExamples\x1b[0m:
 
-  asciinema cat demo1.cast demo2.cast demo3.cast > combined.cast
+  termlog cat demo1.cast demo2.cast demo3.cast > combined.cast
       Combines local recordings into one file
 
-  asciinema cat https://asciinema.org/a/569727 part2.cast > combined.cast
+  termlog cat https://asciinema.org/a/569727 part2.cast > combined.cast
       Combines a remote and a local recording into one file"
     )]
     Cat(Cat),
@@ -199,20 +216,20 @@ pub enum Commands {
         long_about,
         after_help = "\x1b[1;4mExamples\x1b[0m:
 
-  asciinema convert old.cast new.cast
-      Converts a recording to the latest asciicast format (v3)
+  termlog convert old.cast new.cast
+      Converts a recording to asciicast v2 for broad player compatibility
 
-  asciinema convert demo.cast demo.txt
+  termlog convert demo.cast demo.txt
       Exports a recording as a plain-text log - output format inferred from the .txt extension
 
-  asciinema convert --output-format raw demo.cast demo.txt
+  termlog convert --output-format raw demo.cast demo.txt
       Exports as raw terminal output
 
-  asciinema convert -f txt demo.cast -
+  termlog convert -f txt demo.cast -
       Exports as plain text to stdout
 
-  asciinema convert https://asciinema.org/a/569727 starwars.cast
-      Downloads a remote recording and converts it to the latest asciicast format (v3)"
+  termlog convert https://asciinema.org/a/569727 starwars.cast
+      Downloads a remote recording and converts it to asciicast v2"
     )]
     Convert(Convert),
 }
@@ -222,13 +239,13 @@ pub struct Record {
     /// Output file path
     pub file: String,
 
-    /// Specify the format for the output file. The default is asciicast-v3. If the file path ends with .txt, the txt format will be selected automatically unless --output-format is explicitly specified.
+    /// Specify the format for the output file. The default is asciicast-v2. If the file path ends with .txt, the txt format will be selected automatically unless --output-format is explicitly specified.
     #[arg(
         short = 'f',
         long,
         value_enum,
         value_name = "FORMAT",
-        help = "Output file format [default: asciicast-v3]",
+        help = "Output file format [default: asciicast-v2]",
         long_help
     )]
     pub output_format: Option<Format>,
@@ -362,6 +379,38 @@ pub struct Play {
 }
 
 #[derive(Debug, Args)]
+pub struct Login {}
+
+#[derive(Debug, Args)]
+pub struct Logout {}
+
+#[derive(Debug, Args)]
+pub struct Whoami {}
+
+#[derive(Debug, Args)]
+pub struct Verify {
+    /// The asciicast recording file to verify.
+    pub cast: String,
+
+    /// Optional receipt JWT path. Defaults to <cast>.jwt.
+    pub receipt: Option<String>,
+
+    /// Expected verified Google email for this submission.
+    #[arg(long, value_name = "EMAIL")]
+    pub expect_email: Option<String>,
+
+    /// Output format for the verification report.
+    #[arg(long, value_enum, default_value_t = ReportFormat::Text)]
+    pub format: ReportFormat,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, ValueEnum)]
+pub enum ReportFormat {
+    Text,
+    Json,
+}
+
+#[derive(Debug, Args)]
 #[clap(group(ArgGroup::new("mode").args(&["local", "remote"]).multiple(true).required(true)))]
 pub struct Stream {
     /// Start the local HTTP server to stream the session in real-time. Creates a web interface accessible via browser where viewers can watch the terminal session live. Optionally specify the bind address as IP:PORT (e.g., 0.0.0.0:8080 to allow external connections). If no address is provided, it listens on an automatically assigned ephemeral port on 127.0.0.1.
@@ -465,13 +514,13 @@ pub struct Session {
     )]
     pub output_file: Option<String>,
 
-    /// Specify the format for the output file when saving is enabled with --output-file. The default is asciicast-v3. If the output file path ends with .txt, the txt format will be selected automatically unless this option is explicitly specified.
+    /// Specify the format for the output file when saving is enabled with --output-file. The default is asciicast-v2. If the output file path ends with .txt, the txt format will be selected automatically unless this option is explicitly specified.
     #[arg(
         short = 'f',
         long,
         value_enum,
         value_name = "FORMAT",
-        help = "Output file format [default: asciicast-v3]",
+        help = "Output file format [default: asciicast-v2]",
         long_help
     )]
     pub output_format: Option<Format>,
@@ -597,13 +646,13 @@ pub struct Convert {
     /// The output path for the converted recording. Can be a file path or '-' to write to standard output.
     pub output: String,
 
-    /// Specify the format for the converted recording. The default is asciicast-v3. If the output file path ends with .txt, the txt format will be selected automatically unless this option is explicitly specified.
+    /// Specify the format for the converted recording. The default is asciicast-v2. If the output file path ends with .txt, the txt format will be selected automatically unless this option is explicitly specified.
     #[arg(
         short = 'f',
         long,
         value_enum,
         value_name = "FORMAT",
-        help = "Output file format [default: asciicast-v3]",
+        help = "Output file format [default: asciicast-v2]",
         long_help
     )]
     pub output_format: Option<Format>,

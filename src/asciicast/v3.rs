@@ -6,7 +6,7 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Deserializer, Serialize};
 
-use super::{util, Asciicast, Event, EventData, Header, Version};
+use super::{util, Asciicast, Event, EventData, Header, Proof, Version};
 use crate::tty::TtyTheme;
 use crate::util::Quantizer;
 
@@ -19,6 +19,7 @@ struct V3Header {
     command: Option<String>,
     title: Option<String>,
     env: Option<HashMap<String, String>>,
+    proof: Option<Proof>,
 }
 
 #[derive(Deserialize)]
@@ -102,6 +103,7 @@ impl Parser {
             command: self.header.command.clone(),
             title: self.header.title.clone(),
             env: self.header.env.clone(),
+            proof: self.header.proof.clone(),
         };
 
         let events = Box::new(lines.filter_map(move |line| self.parse_line(line)));
@@ -278,6 +280,10 @@ impl serde::Serialize for V3Header {
             len += 1;
         }
 
+        if self.proof.is_some() {
+            len += 1;
+        }
+
         let mut map = serializer.serialize_map(Some(len))?;
         map.serialize_entry("version", &3)?;
         map.serialize_entry("term", &self.term)?;
@@ -303,6 +309,11 @@ impl serde::Serialize for V3Header {
                 map.serialize_entry("env", &env)?;
             }
         }
+
+        if let Some(proof) = &self.proof {
+            map.serialize_entry("proof", &proof)?;
+        }
+
         map.end()
     }
 }
@@ -432,6 +443,7 @@ impl From<&Header> for V3Header {
             command: header.command.clone(),
             title: header.title.clone(),
             env: header.env.clone(),
+            proof: header.proof.clone(),
         }
     }
 }

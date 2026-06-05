@@ -57,6 +57,7 @@ pub fn load(json: String) -> Result<Asciicast<'static>> {
         command: asciicast.command.clone(),
         title: asciicast.title.clone(),
         env,
+        proof: None,
     };
 
     let events = Box::new(asciicast.stdout.into_iter().scan(

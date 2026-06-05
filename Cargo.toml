@@ -1,11 +1,11 @@
 [package]
-name = "asciinema"
+name = "termlog"
 version = "3.2.0"
 edition = "2021"
 authors = ["Marcin Kulik <m@ku1ik.com>"]
 homepage = "https://asciinema.org"
 repository = "https://github.com/asciinema/asciinema"
-description = "Terminal session recorder, streamer, and player"
+description = "Authenticated terminal session recorder"
 license = "GPL-3.0-or-later"
 
 # MSRV
@@ -42,6 +42,9 @@ rand = "0.9"
 async-trait = "0.1"
 signal-hook-tokio = { version = "0.3", features = ["futures-v0_3"] }
 bytes = "1.11"
+base64 = "0.22"
+jsonwebtoken = "9.3"
+sha2 = "0.10"
 
 [build-dependencies]
 clap = { version = "4.0", features = ["derive", "wrap_help"] }

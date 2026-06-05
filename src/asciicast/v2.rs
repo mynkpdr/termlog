@@ -6,7 +6,7 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Deserializer, Serialize};
 
-use super::{util, Asciicast, Event, EventData, Header, Version};
+use super::{util, Asciicast, Event, EventData, Header, Proof, Version};
 use crate::tty::TtyTheme;
 
 #[derive(Deserialize)]
@@ -20,6 +20,7 @@ struct V2Header {
     title: Option<String>,
     env: Option<HashMap<String, Option<String>>>,
     theme: Option<V2Theme>,
+    proof: Option<Proof>,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -53,6 +54,7 @@ enum V2EventCode {
     Input,
     Resize,
     Marker,
+    Exit,
     Other(char),
 }
 
@@ -100,6 +102,7 @@ impl Parser {
             command: self.0.command.clone(),
             title: self.0.title.clone(),
             env,
+            proof: self.0.proof.clone(),
         };
 
         let events = Box::new(lines.filter_map(parse_line));
@@ -152,6 +155,7 @@ fn parse_event(line: String) -> Result<Event> {
         },
 
         V2EventCode::Marker => EventData::Marker(event.data),
+        V2EventCode::Exit => EventData::Exit(event.data.parse()?),
         V2EventCode::Other(c) => EventData::Other(c, event.data),
     };
 
@@ -175,6 +179,7 @@ where
         "i" => Ok(Input),
         "r" => Ok(Resize),
         "m" => Ok(Marker),
+        "x" => Ok(Exit),
         "" => Err(Error::custom("missing event code")),
         s => Ok(Other(s.chars().next().unwrap())),
     }
@@ -278,6 +283,10 @@ impl serde::Serialize for V2Header {
             len += 1;
         }
 
+        if self.proof.is_some() {
+            len += 1;
+        }
+
         let mut map = serializer.serialize_map(Some(len))?;
         map.serialize_entry("version", &2)?;
         map.serialize_entry("width", &self.width)?;
@@ -307,6 +316,10 @@ impl serde::Serialize for V2Header {
 
         if let Some(theme) = &self.theme {
             map.serialize_entry("theme", &theme)?;
+        }
+
+        if let Some(proof) = &self.proof {
+            map.serialize_entry("proof", &proof)?;
         }
 
         map.end()
@@ -398,6 +411,7 @@ impl From<&Header> for V2Header {
             title: header.title.clone(),
             env,
             theme: header.term_theme.as_ref().map(|t| t.into()),
+            proof: header.proof.clone(),
         }
     }
 }

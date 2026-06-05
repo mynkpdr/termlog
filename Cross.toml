@@ -1,0 +1,6 @@
+[build.env]
+passthrough = [
+    "TERMLOG_GOOGLE_CLIENT_ID",
+    "TERMLOG_GOOGLE_CLIENT_SECRET",
+    "TERMLOG_RECEIPT_SECRET",
+]

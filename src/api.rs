@@ -239,7 +239,7 @@ async fn parse_stream_response<T: DeserializeOwned>(
 
     match response.status().as_u16() {
         401 => bail!(
-            "this CLI hasn't been authenticated with {server_hostname} - run `asciinema auth` first"
+            "this CLI hasn't been authenticated with {server_hostname} - run `termlog auth` first"
         ),
 
         404 => match response.json::<ErrorResponse>().await {
@@ -273,7 +273,7 @@ fn get_username() -> String {
 
 pub fn build_user_agent() -> String {
     let ua = concat!(
-        "asciinema/",
+        "termlog/",
         env!("CARGO_PKG_VERSION"),
         " target/",
         env!("TARGET")

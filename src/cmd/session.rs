@@ -16,6 +16,7 @@ use url::Url;
 
 use crate::api::{self, StreamChangeset, StreamResponse, Visibility};
 use crate::asciicast::{self, Version};
+use crate::audit::{self, RecordingAudit};
 use crate::cli::{self, Format, RelayTarget};
 use crate::config::{self, Config};
 use crate::encoder::{AsciicastV2Encoder, AsciicastV3Encoder, Encoder, RawEncoder, TextEncoder};
@@ -52,7 +53,12 @@ impl cli::Session {
         let keys = get_key_bindings(&config.session)?;
         let notifier = get_notifier(&config);
         let (tty, term_info) = probe_tty(self.headless, self.window_size).await?;
-        let metadata = self.get_session_metadata(&config.session, term_info)?;
+        let audit = self.prepare_audit()?;
+        let metadata = self.get_session_metadata(
+            &config.session,
+            term_info,
+            audit.as_ref().map(|audit| audit.proof.clone()),
+        )?;
         let file_writer = self.get_file_writer(&metadata, notifier.clone()).await?;
         let listener = self.get_listener().await?;
         let relay = self.get_relay(&metadata, &mut config).await?;
@@ -70,7 +76,7 @@ impl cli::Session {
             }
         }
 
-        status::info!("asciinema session started");
+        status::info!("termlog session started");
 
         if let Some(path) = self.output_file.as_ref() {
             status::info!("Recording to {}", path);
@@ -132,7 +138,7 @@ impl cli::Session {
                 command,
                 extra_env,
                 raw_tty.as_mut(),
-                self.capture_input || config.session.capture_input,
+                audit.is_some() || self.capture_input || config.session.capture_input,
                 outputs,
                 keys,
                 notifier,
@@ -140,10 +146,21 @@ impl cli::Session {
             .await?
         };
 
-        status::info!("asciinema session ended");
+        status::info!("termlog session ended");
 
         if let Some(path) = self.output_file.as_ref() {
             status::info!("Recorded to {}", path);
+        }
+
+        if let (Some(path), Some(audit)) = (self.output_file.as_ref(), audit.as_ref()) {
+            let receipt = audit::write_receipt(
+                Path::new(path),
+                audit,
+                audit::unix_timestamp(),
+                exit_status,
+                true,
+            )?;
+            status::info!("Receipt written to {}", receipt.display());
         }
 
         shutdown_token.cancel();
@@ -165,7 +182,12 @@ impl cli::Session {
         self.command.as_ref().cloned().or(config.command.clone())
     }
 
-    fn get_session_metadata(&self, config: &config::Session, term: TermInfo) -> Result<Metadata> {
+    fn get_session_metadata(
+        &self,
+        config: &config::Session,
+        term: TermInfo,
+        proof: Option<asciicast::Proof>,
+    ) -> Result<Metadata> {
         Ok(Metadata {
             time: SystemTime::now(),
             term,
@@ -173,7 +195,54 @@ impl cli::Session {
             command: self.get_command(config),
             title: self.title.clone(),
             env: capture_env(self.capture_env.clone(), config),
+            proof,
         })
+    }
+
+    fn prepare_audit(&mut self) -> Result<Option<RecordingAudit>> {
+        if !self.is_audited_recording() {
+            return Ok(None);
+        }
+
+        let path = self
+            .output_file
+            .as_ref()
+            .ok_or_else(|| anyhow!("audited recording requires an output file"))?;
+
+        if path == "-" {
+            bail!("audited recording requires a real .cast file path");
+        }
+
+        if self.append {
+            bail!("audited recording does not support --append");
+        }
+
+        if matches!(
+            self.output_format,
+            Some(Format::AsciicastV3 | Format::Raw | Format::Txt)
+        ) || (self.output_format.is_none()
+            && Path::new(path).extension().is_some_and(|ext| ext == "txt"))
+        {
+            bail!("audited recording requires asciicast-v2 .cast output");
+        }
+
+        let receipt = audit::receipt_sidecar_path(Path::new(path));
+
+        if receipt.exists() && !self.overwrite {
+            bail!("receipt file exists, use --overwrite");
+        }
+
+        self.capture_input = true;
+        self.output_format = Some(Format::AsciicastV2);
+        status::warning!(
+            "Audited mode records keyboard input, including hidden password input. Do not type real secrets."
+        );
+
+        audit::prepare_recording().map(Some)
+    }
+
+    fn is_audited_recording(&self) -> bool {
+        self.env.iter().any(|var| var == "TERMLOG_AUDIT=1")
     }
 
     async fn get_file_writer<N: Notifier + 'static>(
@@ -238,7 +307,7 @@ impl cli::Session {
                     Err(e) => bail!("can't append: {e}"),
                 }
             } else {
-                Ok(Format::AsciicastV3)
+                Ok(Format::AsciicastV2)
             }
         })
     }

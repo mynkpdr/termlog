@@ -11,6 +11,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 
 use crate::tty::TtyTheme;
 pub use v2::V2Encoder;
@@ -40,6 +41,18 @@ pub struct Header {
     pub command: Option<String>,
     pub title: Option<String>,
     pub env: Option<HashMap<String, String>>,
+    pub proof: Option<Proof>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Proof {
+    pub mode: String,
+    pub google_sub: String,
+    pub email: String,
+    pub login_iat: u64,
+    pub login_exp: u64,
+    pub session_id: String,
+    pub nonce: String,
 }
 
 pub struct Event {
@@ -93,6 +106,7 @@ impl Default for Header {
             command: None,
             title: None,
             env: None,
+            proof: None,
         }
     }
 }

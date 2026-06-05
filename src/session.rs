@@ -13,6 +13,7 @@ use tokio::sync::mpsc;
 use tokio::time::Instant;
 use tracing::error;
 
+use crate::asciicast::Proof;
 use crate::config::Key;
 use crate::notifier::Notifier;
 use crate::pty::{self, Pty};
@@ -38,6 +39,7 @@ pub struct Metadata {
     pub command: Option<String>,
     pub title: Option<String>,
     pub env: HashMap<String, String>,
+    pub proof: Option<Proof>,
 }
 
 #[derive(Clone)]

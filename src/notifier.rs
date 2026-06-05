@@ -39,7 +39,7 @@ impl TmuxNotifier {
 #[async_trait]
 impl Notifier for TmuxNotifier {
     async fn notify(&mut self, message: String) -> anyhow::Result<()> {
-        let args = ["display-message", &format!("asciinema: {message}")];
+        let args = ["display-message", &format!("termlog: {message}")];
 
         exec(&mut Command::new(&self.0), &args).await
     }
@@ -56,7 +56,7 @@ impl LibNotifyNotifier {
 #[async_trait]
 impl Notifier for LibNotifyNotifier {
     async fn notify(&mut self, message: String) -> anyhow::Result<()> {
-        exec(&mut Command::new(&self.0), &["asciinema", &message]).await
+        exec(&mut Command::new(&self.0), &["termlog", &message]).await
     }
 }
 
@@ -72,7 +72,7 @@ impl AppleScriptNotifier {
 impl Notifier for AppleScriptNotifier {
     async fn notify(&mut self, message: String) -> anyhow::Result<()> {
         let text = message.replace('\"', "\\\"");
-        let script = format!("display notification \"{text}\" with title \"asciinema\"");
+        let script = format!("display notification \"{text}\" with title \"termlog\"");
 
         exec(&mut Command::new(&self.0), &["-e", &script]).await
     }

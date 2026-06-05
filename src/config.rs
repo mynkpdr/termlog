@@ -67,7 +67,7 @@ impl Config {
             .set_default("playback.speed", None::<Option<f64>>)?
             .set_default("session.capture_input", false)?
             .set_default("notifications.enabled", true)?
-            .add_source(File::with_name("/etc/asciinema/config.toml").required(false))
+            .add_source(File::with_name("/etc/termlog/config.toml").required(false))
             .add_source(File::with_name(&user_defaults_path()?.to_string_lossy()).required(false))
             .add_source(File::with_name(&user_config_path()?.to_string_lossy()).required(false));
 
@@ -214,7 +214,7 @@ pub fn user_config_path() -> Result<PathBuf> {
 }
 
 fn legacy_user_config_path() -> Result<PathBuf> {
-    Ok(config_home()?.join("config"))
+    Ok(legacy_config_home()?.join("config"))
 }
 
 fn user_defaults_path() -> Result<PathBuf> {
@@ -226,10 +226,19 @@ fn install_id_path() -> Result<PathBuf> {
 }
 
 fn legacy_install_id_path() -> Result<PathBuf> {
-    Ok(config_home()?.join(INSTALL_ID_FILENAME))
+    Ok(legacy_config_home()?.join(INSTALL_ID_FILENAME))
 }
 
 fn config_home() -> Result<PathBuf> {
+    env::var("TERMLOG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .or(env::var("ASCIINEMA_CONFIG_HOME").map(PathBuf::from))
+        .or(env::var("XDG_CONFIG_HOME").map(|home| Path::new(&home).join("termlog")))
+        .or(env::var("HOME").map(|home| Path::new(&home).join(".config").join("termlog")))
+        .map_err(|_| anyhow!("need $HOME or $XDG_CONFIG_HOME or $TERMLOG_CONFIG_HOME"))
+}
+
+fn legacy_config_home() -> Result<PathBuf> {
     env::var("ASCIINEMA_CONFIG_HOME")
         .map(PathBuf::from)
         .or(env::var("XDG_CONFIG_HOME").map(|home| Path::new(&home).join("asciinema")))
@@ -238,16 +247,17 @@ fn config_home() -> Result<PathBuf> {
 }
 
 fn state_home() -> Result<PathBuf> {
-    env::var("ASCIINEMA_STATE_HOME")
+    env::var("TERMLOG_STATE_HOME")
         .map(PathBuf::from)
-        .or(env::var("XDG_STATE_HOME").map(|home| Path::new(&home).join("asciinema")))
+        .or(env::var("ASCIINEMA_STATE_HOME").map(PathBuf::from))
+        .or(env::var("XDG_STATE_HOME").map(|home| Path::new(&home).join("termlog")))
         .or(env::var("HOME").map(|home| {
             Path::new(&home)
                 .join(".local")
                 .join("state")
-                .join("asciinema")
+                .join("termlog")
         }))
-        .map_err(|_| anyhow!("need $HOME or $XDG_STATE_HOME or $ASCIINEMA_STATE_HOME"))
+        .map_err(|_| anyhow!("need $HOME or $XDG_STATE_HOME or $TERMLOG_STATE_HOME"))
 }
 
 fn parse_key<S: AsRef<str>>(key: S) -> Result<Key> {

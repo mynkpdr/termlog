@@ -17,7 +17,7 @@ pub fn check_utf8_locale() -> anyhow::Result<()> {
             .or(env::var("LANG").map(|v| format!("LANG={v}")))
             .unwrap_or("".to_string());
 
-        Err(anyhow::anyhow!("asciinema requires ASCII or UTF-8 character encoding. The environment ({}) specifies the character set \"{}\". Check the output of `locale` command.", env, encoding))
+        Err(anyhow::anyhow!("termlog requires ASCII or UTF-8 character encoding. The environment ({}) specifies the character set \"{}\". Check the output of `locale` command.", env, encoding))
     }
 }
 

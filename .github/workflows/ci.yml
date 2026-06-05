@@ -2,12 +2,16 @@ name: CI
 
 on:
   push:
-    branches: ["develop"]
+    branches: ["main"]
   pull_request:
-    branches: ["develop"]
+    branches: ["main"]
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
+  TERMLOG_GOOGLE_CLIENT_ID: ${{ secrets.TERMLOG_GOOGLE_CLIENT_ID }}
+  TERMLOG_GOOGLE_CLIENT_SECRET: ${{ secrets.TERMLOG_GOOGLE_CLIENT_SECRET }}
+  TERMLOG_RECEIPT_SECRET: ${{ secrets.TERMLOG_RECEIPT_SECRET }}
 
 jobs:
   build:
@@ -30,10 +34,10 @@ jobs:
           restore-prefixes-first-match: nix-${{ runner.os }}-${{ matrix.rust }}-
 
       - name: Build
-        run: nix develop .#${{ matrix.rust }} --command cargo build --verbose
+        run: nix develop .#${{ matrix.rust }} --command cargo build --locked --verbose
 
       - name: Run cargo tests
-        run: nix develop .#${{ matrix.rust }} --command cargo test --verbose
+        run: nix develop .#${{ matrix.rust }} --command cargo test --locked --verbose
 
       - name: Run integration tests
         run: nix develop .#${{ matrix.rust }} --command tests/integration.sh
@@ -42,4 +46,4 @@ jobs:
         run: nix develop .#${{ matrix.rust }} --command cargo fmt --check
 
       - name: Lint with clippy
-        run: nix develop .#${{ matrix.rust }} --command cargo clippy
+        run: nix develop .#${{ matrix.rust }} --command cargo clippy --locked

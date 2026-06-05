@@ -114,25 +114,26 @@ assert_file_contains() {
 setup() {
     log_info "Setting up test environment..."
     
-    ASCIINEMA_CONFIG_HOME="$(
-        mktemp -d 2>/dev/null || mktemp -d -t asciinema-config-home
+    TERMLOG_CONFIG_HOME="$(
+        mktemp -d 2>/dev/null || mktemp -d -t termlog-config-home
     )"
 
-    ASCIINEMA_STATE_HOME="$(
-        mktemp -d 2>/dev/null || mktemp -d -t asciinema-state-home
+    TERMLOG_STATE_HOME="$(
+        mktemp -d 2>/dev/null || mktemp -d -t termlog-state-home
     )"
 
     ASCIINEMA_GEN_DIR="$(
-        mktemp -d 2>/dev/null || mktemp -d -t asciinema-gen-dir
+        mktemp -d 2>/dev/null || mktemp -d -t termlog-gen-dir
     )"
 
-    export ASCIINEMA_CONFIG_HOME ASCIINEMA_STATE_HOME ASCIINEMA_GEN_DIR
+    export TERMLOG_CONFIG_HOME TERMLOG_STATE_HOME ASCIINEMA_GEN_DIR
     export ASCIINEMA_SERVER_URL=https://asciinema.example.com
+    export TERMLOG_ALLOW_DEV_AUTH=1
 
-    TMP_DATA_DIR="$(mktemp -d 2>/dev/null || mktemp -d -t asciinema-data-dir)"
+    TMP_DATA_DIR="$(mktemp -d 2>/dev/null || mktemp -d -t termlog-data-dir)"
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     FIXTURES="$SCRIPT_DIR/casts"
-    ASCIINEMA_BIN="$SCRIPT_DIR/../target/integration-test/asciinema"
+    TERMLOG_BIN="$SCRIPT_DIR/../target/integration-test/termlog"
 
     trap 'cleanup' EXIT
 
@@ -140,14 +141,14 @@ setup() {
     cargo build --profile=integration-test --locked
 
     # disable notifications
-    printf "[notifications]\nenabled = false\n" >> "${ASCIINEMA_CONFIG_HOME}/config.toml"
+    printf "[notifications]\nenabled = false\n" >> "${TERMLOG_CONFIG_HOME}/config.toml"
     
     log_info "Setup complete"
 }
 
 cleanup() {
     log_info "Cleaning up..."
-    rm -rf "${ASCIINEMA_CONFIG_HOME:-}" "${ASCIINEMA_STATE_HOME:-}" "${ASCIINEMA_GEN_DIR:-}" "${TMP_DATA_DIR:-}"
+    rm -rf "${TERMLOG_CONFIG_HOME:-}" "${TERMLOG_STATE_HOME:-}" "${ASCIINEMA_GEN_DIR:-}" "${TMP_DATA_DIR:-}"
 }
 
 # Test runner function
@@ -169,20 +170,20 @@ test_help() {
     
     # Test short help
     local output rc
-    if output=$("$ASCIINEMA_BIN" -h 2>&1); then rc=0; else rc=$?; fi
+    if output=$("$TERMLOG_BIN" -h 2>&1); then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "help short flag"
-    assert_output_contains "Terminal session recorder" "$output" "help content"
+    assert_output_contains "Authenticated terminal session recorder" "$output" "help content"
     assert_output_contains "Commands:" "$output" "help shows commands"
     
     # Test long help
-    if output=$("$ASCIINEMA_BIN" --help 2>&1); then rc=0; else rc=$?; fi
+    if output=$("$TERMLOG_BIN" --help 2>&1); then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "help long flag"
-    assert_output_contains "Terminal session recorder" "$output" "help content"
+    assert_output_contains "Authenticated terminal session recorder" "$output" "help content"
     
     # Test help subcommand
-    if output=$("$ASCIINEMA_BIN" help 2>&1); then rc=0; else rc=$?; fi
+    if output=$("$TERMLOG_BIN" help 2>&1); then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "help subcommand"
-    assert_output_contains "Terminal session recorder" "$output" "help subcommand content"
+    assert_output_contains "Authenticated terminal session recorder" "$output" "help subcommand content"
 }
 
 test_version() {
@@ -190,80 +191,129 @@ test_version() {
     
     # Test short version
     local output rc
-    if output=$("$ASCIINEMA_BIN" -V 2>&1); then rc=0; else rc=$?; fi
+    if output=$("$TERMLOG_BIN" -V 2>&1); then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "version short flag"
-    assert_output_contains "asciinema" "$output" "version output format"
+    assert_output_contains "termlog" "$output" "version output format"
     
     # Test long version
-    if output=$("$ASCIINEMA_BIN" --version 2>&1); then rc=0; else rc=$?; fi
+    if output=$("$TERMLOG_BIN" --version 2>&1); then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "version long flag"
-    assert_output_contains "asciinema" "$output" "version output format"
+    assert_output_contains "termlog" "$output" "version output format"
 }
 
-test_auth() {
-    log_info "Testing auth command..."
-    
-    # Test auth command (should handle offline gracefully)
+test_login() {
+    log_info "Testing login commands..."
+
     local output rc
-    if output=$("$ASCIINEMA_BIN" auth 2>&1); then rc=0; else rc=$?; fi
-    
-    # Auth should complete without hanging and show expected message
-    assert_exit_code 0 "$rc" "auth"
-    assert_output_contains "Open the following URL in a web browser" "$output" "auth command output"
+    if output=$("$TERMLOG_BIN" login 2>&1); then rc=0; else rc=$?; fi
+    assert_exit_code 0 "$rc" "login"
+    assert_output_contains "student@example.edu" "$output" "login output"
+
+    if output=$("$TERMLOG_BIN" whoami 2>&1); then rc=0; else rc=$?; fi
+    assert_exit_code 0 "$rc" "whoami"
+    assert_output_contains "student@example.edu" "$output" "whoami output"
+
+    if output=$("$TERMLOG_BIN" logout 2>&1); then rc=0; else rc=$?; fi
+    assert_exit_code 0 "$rc" "logout"
+    assert_output_contains "Logged out" "$output" "logout output"
+
+    if output=$("$TERMLOG_BIN" login 2>&1); then rc=0; else rc=$?; fi
+    assert_exit_code 0 "$rc" "login after logout"
 }
 
 test_record() {
     log_info "Testing record command..."
-    
-    # Test basic recording
+
+    # Test auth is required when development auth is disabled
+    local missing_state
+    missing_state="$(mktemp -d 2>/dev/null || mktemp -d -t termlog-missing-auth)"
+    local missing_file="$TMP_DATA_DIR/record_missing_auth.cast"
+    local output rc
+    if output=$(env -u TERMLOG_ALLOW_DEV_AUTH TERMLOG_STATE_HOME="$missing_state" "$TERMLOG_BIN" record --headless --command 'echo "no auth"' "$missing_file" 2>&1); then rc=0; else rc=$?; fi
+    assert_exit_code 1 "$rc" "record rejects missing auth"
+    assert_output_contains "not logged in" "$output" "record missing auth output"
+    rm -rf "$missing_state"
+
+    # Test audited recording
     local file1="$TMP_DATA_DIR/record_basic.cast"
-    local rc
-    if "$ASCIINEMA_BIN" record --headless --command 'echo "hello world"' --return "$file1"; then rc=0; else rc=$?; fi
+    if "$TERMLOG_BIN" record --headless --command 'echo "hello world"' --return "$file1"; then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "record basic"
+    assert_file_contains '"version":2' "$file1" "record v2 compatibility"
     assert_file_contains '"o",' "$file1" "record output event"
     assert_file_contains 'hello world' "$file1" "record output content"
-    
-    # Test different formats
+    assert_file_contains '"proof"' "$file1" "record proof header"
+    assert_file_exists "$file1.jwt" "record receipt sidecar"
+
+    if output=$("$TERMLOG_BIN" verify "$file1" 2>&1); then rc=0; else rc=$?; fi
+    assert_exit_code 0 "$rc" "verify sidecar receipt"
+    assert_output_contains "ok: true" "$output" "verify success output"
+    assert_output_contains "email check: not_requested" "$output" "verify email check not requested"
+    assert_output_contains "Google client ID check: dev-mode" "$output" "verify client id check mode"
+    assert_output_contains "Google identity check: dev-mode" "$output" "verify identity check mode"
+    assert_output_contains "recording identity status: development" "$output" "verify recording identity status"
+    assert_output_contains "Google token status: dev-mode" "$output" "verify token status"
+
+    if output=$("$TERMLOG_BIN" verify "$file1" --expect-email student@example.edu 2>&1); then rc=0; else rc=$?; fi
+    assert_exit_code 0 "$rc" "verify expected email match"
+    assert_output_contains "email check: valid" "$output" "verify expected email match output"
+
+    if output=$("$TERMLOG_BIN" verify "$file1" --expect-email other@example.edu 2>&1); then rc=0; else rc=$?; fi
+    assert_exit_code 1 "$rc" "verify expected email mismatch"
+    assert_output_contains "email check: mismatch" "$output" "verify expected email mismatch output"
+
+    if output=$("$TERMLOG_BIN" verify "$file1" "$file1.jwt" 2>&1); then rc=0; else rc=$?; fi
+    assert_exit_code 0 "$rc" "verify explicit receipt"
+
+    if output=$(env -u TERMLOG_ALLOW_DEV_AUTH "$TERMLOG_BIN" verify "$file1" 2>&1); then rc=0; else rc=$?; fi
+    assert_exit_code 1 "$rc" "verify rejects dev receipt without dev auth"
+    assert_output_contains "Google client ID check: dev-mode-disabled" "$output" "verify dev receipt disabled output"
+
+    local tampered="$TMP_DATA_DIR/record_tampered.cast"
+    cp "$file1" "$tampered"
+    printf '# tampered\n' >> "$tampered"
+    if output=$("$TERMLOG_BIN" verify "$tampered" "$file1.jwt" 2>&1); then rc=0; else rc=$?; fi
+    assert_exit_code 1 "$rc" "verify rejects tampered cast"
+    assert_output_contains "cast hash: mismatch" "$output" "verify tamper output"
+
+    # Test rejected audited output modes
     local file2="$TMP_DATA_DIR/record_v2.cast"
-    if "$ASCIINEMA_BIN" record --headless --command 'echo "test v2"' --output-format asciicast-v2 --return "$file2"; then rc=0; else rc=$?; fi
-    assert_exit_code 0 "$rc" "record v2 format"
-    assert_file_not_empty "$file2" "record v2 format"
-    
+    if "$TERMLOG_BIN" record --headless --command 'echo "test v2"' --output-format asciicast-v2 --return "$file2"; then rc=0; else rc=$?; fi
+    assert_exit_code 0 "$rc" "record accepts explicit v2 format"
+    assert_file_contains '"version":2' "$file2" "record explicit v2 version"
+
     local file3="$TMP_DATA_DIR/record_v3.cast"
-    if "$ASCIINEMA_BIN" record --headless --command 'echo "test v3"' --output-format asciicast-v3 --return "$file3"; then rc=0; else rc=$?; fi
-    assert_exit_code 0 "$rc" "record v3 format"
-    assert_file_not_empty "$file3" "record v3 format"
-    
-    # Test raw format
+    if "$TERMLOG_BIN" record --headless --command 'echo "test v3"' --output-format asciicast-v3 --return "$file3"; then rc=0; else rc=$?; fi
+    assert_exit_code 1 "$rc" "record rejects v3 format"
+
     local file4="$TMP_DATA_DIR/record_raw.raw"
-    if "$ASCIINEMA_BIN" record --headless --command 'echo "test raw"' --output-format raw --return "$file4"; then rc=0; else rc=$?; fi
-    assert_exit_code 0 "$rc" "record raw format"
-    assert_file_not_empty "$file4" "record raw format"
-    
-    # Test txt format
+    if "$TERMLOG_BIN" record --headless --command 'echo "test raw"' --output-format raw --return "$file4"; then rc=0; else rc=$?; fi
+    assert_exit_code 1 "$rc" "record rejects raw format"
+
     local file5="$TMP_DATA_DIR/record_txt.txt"
-    if "$ASCIINEMA_BIN" record --headless --command 'echo "test txt"' --output-format txt --return "$file5"; then rc=0; else rc=$?; fi
-    assert_exit_code 0 "$rc" "record txt format"
-    assert_file_not_empty "$file5" "record txt format"
-    
+    if "$TERMLOG_BIN" record --headless --command 'echo "test txt"' --output-format txt --return "$file5"; then rc=0; else rc=$?; fi
+    assert_exit_code 1 "$rc" "record rejects txt format"
+
+    local file5b="$TMP_DATA_DIR/record_txt_inferred.txt"
+    if "$TERMLOG_BIN" record --headless --command 'echo "test txt"' --return "$file5b"; then rc=0; else rc=$?; fi
+    assert_exit_code 1 "$rc" "record rejects inferred txt format"
+
     # Test return flag with failure
     local file6="$TMP_DATA_DIR/record_fail.cast"
-    if "$ASCIINEMA_BIN" record --headless --command 'exit 42' --return "$file6"; then rc=0; else rc=$?; fi
+    if "$TERMLOG_BIN" record --headless --command 'exit 42' --return "$file6"; then rc=0; else rc=$?; fi
     assert_exit_code 42 "$rc" "record return flag with failure"
     assert_file_not_empty "$file6" "record failure"
-    
-    # Test append mode
+    assert_file_exists "$file6.jwt" "record failure receipt"
+
+    # Test append mode is rejected
     local file7="$TMP_DATA_DIR/record_append.cast"
-    if "$ASCIINEMA_BIN" record --headless --command 'echo "first"' --return "$file7"; then rc=0; else rc=$?; fi
+    if "$TERMLOG_BIN" record --headless --command 'echo "first"' --return "$file7"; then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "record append setup"
-    if "$ASCIINEMA_BIN" record --headless --command 'echo "second"' --append --return "$file7"; then rc=0; else rc=$?; fi
-    assert_exit_code 0 "$rc" "record append"
-    assert_file_contains 'first' "$file7" "record append first content"
-    assert_file_contains 'second' "$file7" "record append second content"
-    
+    if "$TERMLOG_BIN" record --headless --command 'echo "second"' --append --return "$file7"; then rc=0; else rc=$?; fi
+    assert_exit_code 1 "$rc" "record rejects append"
+
     # Test idle time limits
     local file8="$TMP_DATA_DIR/record_idle.cast"
-    if "$ASCIINEMA_BIN" record --headless --command 'bash -c "echo start; sleep 2; echo end"' --idle-time-limit 1 --return "$file8"; then rc=0; else rc=$?; fi
+    if "$TERMLOG_BIN" record --headless --command 'bash -c "echo start; sleep 2; echo end"' --idle-time-limit 1 --return "$file8"; then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "record idle time limit"
     assert_file_not_empty "$file8" "record idle time limit"
 }
@@ -280,13 +330,13 @@ test_play() {
 
     # Test playback from regular file path
     local output rc
-    if output=$(timeout --foreground 10s "$ASCIINEMA_BIN" play --speed 1000 "$fixture" 2>&1); then rc=0; else rc=$?; fi
+    if output=$(timeout --foreground 10s "$TERMLOG_BIN" play --speed 1000 "$fixture" 2>&1); then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "play from file"
     assert_output_contains "Replaying session from $fixture" "$output" "play file start message"
     assert_output_contains "Playback ended" "$output" "play file end message"
 
     # Test playback from stdin ("-")
-    if output=$(timeout --foreground 10s "$ASCIINEMA_BIN" play --speed 1000 - < "$fixture" 2>&1); then rc=0; else rc=$?; fi
+    if output=$(timeout --foreground 10s "$TERMLOG_BIN" play --speed 1000 - < "$fixture" 2>&1); then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "play from stdin"
     assert_output_contains "Replaying session from -" "$output" "play stdin start message"
     assert_output_contains "Playback ended" "$output" "play stdin end message"
@@ -296,7 +346,7 @@ test_stream() {
     log_info "Testing stream command..."
     
     # Test local streaming
-    timeout 10s "$ASCIINEMA_BIN" stream --headless --local 127.0.0.1:8081 --command 'bash -c "echo streaming test; sleep 3; echo done"' --return &
+    timeout 10s "$TERMLOG_BIN" stream --headless --local 127.0.0.1:8081 --command 'bash -c "echo streaming test; sleep 3; echo done"' --return &
     local stream_pid=$!
     
     # Wait a moment for server to start
@@ -319,19 +369,19 @@ test_session() {
     # Test session with file output
     local file1="$TMP_DATA_DIR/session_basic.cast"
     local rc
-    if "$ASCIINEMA_BIN" session --headless --output-file "$file1" --command 'echo "session test"' --return; then rc=0; else rc=$?; fi
+    if "$TERMLOG_BIN" session --headless --output-file "$file1" --command 'echo "session test"' --return; then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "session basic"
     assert_file_contains 'session test' "$file1" "session output content"
     
     # Test session with return flag failure
     local file2="$TMP_DATA_DIR/session_fail.cast"
-    if "$ASCIINEMA_BIN" session --headless --output-file "$file2" --command 'exit 13' --return; then rc=0; else rc=$?; fi
+    if "$TERMLOG_BIN" session --headless --output-file "$file2" --command 'exit 13' --return; then rc=0; else rc=$?; fi
     assert_exit_code 13 "$rc" "session return flag with failure"
     assert_file_contains '"x", "13"' "$file2" "session exit event"
     
     # Test session with local streaming + file output
     local file3="$TMP_DATA_DIR/session_stream.cast"
-    timeout 8s "$ASCIINEMA_BIN" session --headless --output-file "$file3" --stream-local 127.0.0.1:8081 --command 'bash -c "echo stream session; sleep 3; echo done"' --return &
+    timeout 8s "$TERMLOG_BIN" session --headless --output-file "$file3" --stream-local 127.0.0.1:8081 --command 'bash -c "echo stream session; sleep 3; echo done"' --return &
     local session_pid=$!
     
     # Wait a moment for server to start
@@ -353,15 +403,15 @@ test_session() {
     
     # Test different output formats
     local file4="$TMP_DATA_DIR/session_v2.cast"
-    if "$ASCIINEMA_BIN" session --headless --output-file "$file4" --output-format asciicast-v2 --command 'echo "session v2"' --return; then rc=0; else rc=$?; fi
+    if "$TERMLOG_BIN" session --headless --output-file "$file4" --output-format asciicast-v2 --command 'echo "session v2"' --return; then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "session v2 format"
     assert_file_contains 'session v2' "$file4" "session output content"
     
     # Test append mode
     local file5="$TMP_DATA_DIR/session_append.cast"
-    if "$ASCIINEMA_BIN" session --headless --output-file "$file5" --command 'echo "first session"' --return; then rc=0; else rc=$?; fi
+    if "$TERMLOG_BIN" session --headless --output-file "$file5" --command 'echo "first session"' --return; then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "session append setup"
-    if "$ASCIINEMA_BIN" session --headless --output-file "$file5" --append --command 'echo "second session"' --return; then rc=0; else rc=$?; fi
+    if "$TERMLOG_BIN" session --headless --output-file "$file5" --append --command 'echo "second session"' --return; then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "session append"
     assert_file_contains 'first session' "$file5" "session append first content"
     assert_file_contains 'second session' "$file5" "session append second content"
@@ -375,21 +425,21 @@ test_cat() {
     local file2="$TMP_DATA_DIR/cat_input2.cast"
     local rc
     
-    if "$ASCIINEMA_BIN" record --headless --command 'echo "first recording"' --return "$file1"; then rc=0; else rc=$?; fi
+    if "$TERMLOG_BIN" record --headless --command 'echo "first recording"' --return "$file1"; then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "cat setup first recording"
     
-    if "$ASCIINEMA_BIN" record --headless --command 'echo "second recording"' --return "$file2"; then rc=0; else rc=$?; fi
+    if "$TERMLOG_BIN" record --headless --command 'echo "second recording"' --return "$file2"; then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "cat setup second recording"
     
     # Test concatenation to stdout
     local output
-    if output=$("$ASCIINEMA_BIN" cat "$file1" "$file2" 2>&1); then rc=0; else rc=$?; fi
+    if output=$("$TERMLOG_BIN" cat "$file1" "$file2" 2>&1); then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "cat concatenate"
     assert_output_contains 'first recording' "$output" "cat first content"
     assert_output_contains 'second recording' "$output" "cat second content"
     
     # Test with different format inputs (using fixtures, v2+v3 only since v1 can't be concatenated)
-    if output=$("$ASCIINEMA_BIN" cat "$FIXTURES/minimal-v2.cast" "$FIXTURES/minimal-v3.cast" 2>&1); then rc=0; else rc=$?; fi
+    if output=$("$TERMLOG_BIN" cat "$FIXTURES/minimal-v2.cast" "$FIXTURES/minimal-v3.cast" 2>&1); then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "cat mixed formats"
     assert_output_contains '"version":' "$output" "cat mixed formats output"
 }
@@ -397,43 +447,43 @@ test_cat() {
 test_convert() {
     log_info "Testing convert command..."
     
-    # Test v1 to v3 conversion
-    local file1="$TMP_DATA_DIR/convert_v1_to_v3.cast"
+    # Test v1 to v2 conversion
+    local file1="$TMP_DATA_DIR/convert_v1_to_v2.cast"
     local rc
-    if "$ASCIINEMA_BIN" convert "$FIXTURES/minimal-v1.json" "$file1"; then rc=0; else rc=$?; fi
-    assert_exit_code 0 "$rc" "convert v1 to v3"
-    assert_file_contains '"version":3' "$file1" "convert v1 to v3 version"
+    if "$TERMLOG_BIN" convert "$FIXTURES/minimal-v1.json" "$file1"; then rc=0; else rc=$?; fi
+    assert_exit_code 0 "$rc" "convert v1 to v2"
+    assert_file_contains '"version":2' "$file1" "convert v1 to v2 version"
     
-    # Test v2 to v3 conversion
-    local file2="$TMP_DATA_DIR/convert_v2_to_v3.cast"
-    if "$ASCIINEMA_BIN" convert "$FIXTURES/minimal-v2.cast" "$file2"; then rc=0; else rc=$?; fi
-    assert_exit_code 0 "$rc" "convert v2 to v3"
-    assert_file_contains '"version":3' "$file2" "convert v2 to v3 version"
+    # Test v2 to v2 conversion
+    local file2="$TMP_DATA_DIR/convert_v2_to_v2.cast"
+    if "$TERMLOG_BIN" convert "$FIXTURES/minimal-v2.cast" "$file2"; then rc=0; else rc=$?; fi
+    assert_exit_code 0 "$rc" "convert v2 to v2"
+    assert_file_contains '"version":2' "$file2" "convert v2 to v2 version"
     
     # Test to raw format
     local file3="$TMP_DATA_DIR/convert_to_raw.raw"
-    if "$ASCIINEMA_BIN" convert --output-format raw "$FIXTURES/minimal-v2.cast" "$file3"; then rc=0; else rc=$?; fi
+    if "$TERMLOG_BIN" convert --output-format raw "$FIXTURES/minimal-v2.cast" "$file3"; then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "convert to raw"
     assert_file_exists "$file3" "convert to raw output"
     
     # Test to txt format
     local file4="$TMP_DATA_DIR/convert_to_txt.txt"
-    if "$ASCIINEMA_BIN" convert --output-format txt "$FIXTURES/minimal-v2.cast" "$file4"; then rc=0; else rc=$?; fi
+    if "$TERMLOG_BIN" convert --output-format txt "$FIXTURES/minimal-v2.cast" "$file4"; then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "convert to txt"
     assert_file_exists "$file4" "convert to txt output"
     
     # Test output to stdout
     local output
-    if output=$("$ASCIINEMA_BIN" convert "$FIXTURES/minimal-v2.cast" - 2>&1); then rc=0; else rc=$?; fi
+    if output=$("$TERMLOG_BIN" convert "$FIXTURES/minimal-v2.cast" - 2>&1); then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "convert to stdout"
-    assert_output_contains '"version":3' "$output" "convert stdout version"
+    assert_output_contains '"version":2' "$output" "convert stdout version"
     
     # Test overwrite behavior
     local file5="$TMP_DATA_DIR/convert_overwrite.cast"
     echo "existing content" > "$file5"
-    if "$ASCIINEMA_BIN" convert --overwrite "$FIXTURES/minimal-v2.cast" "$file5"; then rc=0; else rc=$?; fi
+    if "$TERMLOG_BIN" convert --overwrite "$FIXTURES/minimal-v2.cast" "$file5"; then rc=0; else rc=$?; fi
     assert_exit_code 0 "$rc" "convert overwrite"
-    assert_file_contains '"version":3' "$file5" "convert overwrite content"
+    assert_file_contains '"version":2' "$file5" "convert overwrite content"
 }
 
 # MAIN EXECUTION
@@ -443,7 +493,7 @@ setup
 
 echo
 echo "######################################################"
-echo "# ASCIINEMA CLI INTEGRATION TESTS"
+echo "# TERMLOG CLI INTEGRATION TESTS"
 echo "######################################################"
 echo "# Test filter: ${TEST:-ALL}"
 echo "######################################################"
@@ -451,7 +501,7 @@ echo "######################################################"
 # Individual test blocks
 run_test "help" test_help
 run_test "version" test_version
-run_test "auth" test_auth
+run_test "login" test_login
 run_test "record" test_record
 run_test "play" test_play
 run_test "stream" test_stream

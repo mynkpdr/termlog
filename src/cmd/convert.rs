@@ -27,7 +27,7 @@ impl cli::Convert {
             if self.output.to_lowercase().ends_with(".txt") {
                 Format::Txt
             } else {
-                Format::AsciicastV3
+                Format::AsciicastV2
             }
         });
 

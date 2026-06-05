@@ -51,6 +51,9 @@ jobs:
 
     env:
       CARGO: cargo
+      TERMLOG_GOOGLE_CLIENT_ID: ${{ secrets.TERMLOG_GOOGLE_CLIENT_ID }}
+      TERMLOG_GOOGLE_CLIENT_SECRET: ${{ secrets.TERMLOG_GOOGLE_CLIENT_SECRET }}
+      TERMLOG_RECEIPT_SECRET: ${{ secrets.TERMLOG_RECEIPT_SECRET }}
 
     steps:
       - uses: actions/checkout@v5
@@ -86,5 +89,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv target/${{ matrix.target }}/release/asciinema target/release/asciinema-${{ matrix.target }}
-          gh release upload ${{ github.ref_name }} target/release/asciinema-${{ matrix.target }}
+          mv target/${{ matrix.target }}/release/termlog target/release/termlog-${{ matrix.target }}
+          gh release upload ${{ github.ref_name }} target/release/termlog-${{ matrix.target }}
