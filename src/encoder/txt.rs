@@ -38,7 +38,7 @@ impl super::Encoder for TextEncoder {
         }
     }
 
-    fn flush(&mut self) -> Vec<u8> {
+    fn finish(&mut self) -> Vec<u8> {
         text_lines_to_bytes(self.collector.take().unwrap().flush().iter())
     }
 }
@@ -86,6 +86,6 @@ mod tests {
             ))
             .is_empty());
 
-        assert_eq!(enc.flush(), "hello\nworld\n".as_bytes());
+        assert_eq!(enc.finish(), "hello\nworld\n".as_bytes());
     }
 }

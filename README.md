@@ -125,6 +125,7 @@ Audited `termlog rec` sessions:
 - force keyboard input capture,
 - force asciicast v2-compatible output,
 - reject append, raw, text, and asciicast v3 output,
+- reject zstd-compressed (`.zst`) output,
 - embed a `proof` object in the asciicast v2 header,
 - write the receipt only after the final exit event has been flushed.
 

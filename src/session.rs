@@ -67,7 +67,7 @@ struct Session<N: Notifier> {
 #[async_trait]
 pub trait Output: Send {
     async fn event(&mut self, event: Event) -> io::Result<()>;
-    async fn flush(&mut self) -> io::Result<()>;
+    async fn finish(&mut self) -> io::Result<()>;
 }
 
 pub async fn run<S: AsRef<str>, T: RawTty + ?Sized, N: Notifier>(
@@ -118,8 +118,8 @@ async fn forward_events(mut events_rx: mpsc::Receiver<Event>, outputs: Vec<Box<d
     }
 
     for mut output in outputs {
-        if let Err(e) = output.flush().await {
-            error!("output flush failed: {e:?}");
+        if let Err(e) = output.finish().await {
+            error!("output finish failed: {e:?}");
         }
     }
 }

@@ -17,6 +17,8 @@ use crate::tty::TtyTheme;
 pub use v2::V2Encoder;
 pub use v3::V3Encoder;
 
+const ZSTD_MAGIC: &[u8] = &[0x28, 0xb5, 0x2f, 0xfd];
+
 pub struct Asciicast<'a> {
     pub version: Version,
     pub header: Header,
@@ -134,9 +136,25 @@ impl Encoder for V3Encoder {
 pub fn open_from_path<S: AsRef<Path>>(path: S) -> Result<Asciicast<'static>> {
     fs::File::open(&path)
         .map(io::BufReader::new)
-        .map_err(|e| anyhow!(e))
-        .and_then(open)
+        .map_err(anyhow::Error::from)
+        .and_then(|mut reader| {
+            if reader.fill_buf()?.starts_with(ZSTD_MAGIC) {
+                let decoder = zstd::stream::read::Decoder::with_buffer(reader)?;
+                open(io::BufReader::new(decoder))
+            } else {
+                open(reader)
+            }
+        })
         .map_err(|e| anyhow!("can't open {}: {}", path.as_ref().to_string_lossy(), e))
+}
+
+pub fn is_zstd<S: AsRef<Path>>(path: S) -> Result<bool> {
+    let file = fs::File::open(&path)
+        .map_err(|e| anyhow!("can't open {}: {}", path.as_ref().to_string_lossy(), e))?;
+
+    let mut reader = io::BufReader::new(file);
+
+    Ok(reader.fill_buf()?.starts_with(ZSTD_MAGIC))
 }
 
 pub fn open<'a, R: BufRead + Send + 'a>(reader: R) -> Result<Asciicast<'a>> {

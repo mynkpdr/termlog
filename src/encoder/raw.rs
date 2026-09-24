@@ -21,7 +21,7 @@ impl super::Encoder for RawEncoder {
         }
     }
 
-    fn flush(&mut self) -> Vec<u8> {
+    fn finish(&mut self) -> Vec<u8> {
         Vec::new()
     }
 }
@@ -71,6 +71,6 @@ mod tests {
         assert!(enc
             .event(Event::marker(Duration::from_micros(4), ".".to_owned()))
             .is_empty());
-        assert!(enc.flush().is_empty());
+        assert!(enc.finish().is_empty());
     }
 }

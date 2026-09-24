@@ -221,7 +221,7 @@ impl session::Output for LiveStream {
         self.0.send(event).await.map_err(io::Error::other)
     }
 
-    async fn flush(&mut self) -> io::Result<()> {
+    async fn finish(&mut self) -> io::Result<()> {
         Ok(())
     }
 }
