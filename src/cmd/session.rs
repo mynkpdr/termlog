@@ -54,7 +54,7 @@ impl cli::Session {
         let keys = get_key_bindings(&config.session)?;
         let notifier = get_notifier(&config);
         let (tty, term_info) = probe_tty(self.headless, self.window_size).await?;
-        let audit = self.prepare_audit()?;
+        let audit = self.prepare_audit().await?;
         let metadata = self.get_session_metadata(
             &config.session,
             term_info,
@@ -200,7 +200,7 @@ impl cli::Session {
         })
     }
 
-    fn prepare_audit(&mut self) -> Result<Option<RecordingAudit>> {
+    async fn prepare_audit(&mut self) -> Result<Option<RecordingAudit>> {
         if !self.is_audited_recording() {
             return Ok(None);
         }
@@ -243,7 +243,13 @@ impl cli::Session {
             "Audited mode records keyboard input, including hidden password input. Do not type real secrets."
         );
 
-        audit::prepare_recording().map(Some)
+        // prepare_recording verifies the Google login over the network with a blocking HTTP
+        // client, which panics if run on the async runtime ("Cannot drop a runtime in a context
+        // where blocking is not allowed"). Run it on the blocking thread pool instead.
+        tokio::task::spawn_blocking(audit::prepare_recording)
+            .await
+            .map_err(|e| anyhow!("login check failed to run: {e}"))?
+            .map(Some)
     }
 
     fn is_audited_recording(&self) -> bool {
