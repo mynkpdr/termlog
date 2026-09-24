@@ -236,7 +236,7 @@ pub enum Commands {
 
 #[derive(Debug, Args)]
 pub struct Record {
-    /// Output file path
+    /// Output file path. A .zst suffix enables zstd compression.
     pub file: String,
 
     /// Specify the format for the output file. The default is asciicast-v2. If the file path ends with .txt, the txt format will be selected automatically unless --output-format is explicitly specified.
@@ -337,7 +337,7 @@ pub struct Record {
 
 #[derive(Debug, Args)]
 pub struct Play {
-    /// The path to an asciicast file or HTTP(S) URL to play back. Can be a local file path, HTTP(S) URL for remote files, or '-' to read from standard input. Remote URLs allow playing recordings directly from the web without need for manual downloading. Supported formats include asciicast v1, v2, and v3.
+    /// The path to an asciicast file or HTTP(S) URL to play back. Can be a local file path, HTTP(S) URL for remote files, or '-' to read from standard input. Remote URLs allow playing recordings directly from the web without need for manual downloading. Supported formats include asciicast v1, v2, and v3, optionally compressed with zstd.
     pub file: String,
 
     /// Control the playback speed as a multiplier of the original timing. Values greater than 1.0 make playback faster, while values less than 1.0 make it slower. For example, --speed 2.0 plays at double speed, while --speed 0.5 plays at half speed. The default is 1.0 (original speed). Can also be set via the config file option playback.speed.
@@ -504,7 +504,7 @@ pub enum Visibility {
 #[derive(Debug, Args)]
 #[clap(group(ArgGroup::new("mode").args(&["output_file", "stream_local", "stream_remote"]).multiple(true).required(true)))]
 pub struct Session {
-    /// Save the session to a file at the specified path. Can be combined with local and remote streaming.
+    /// Save the session to a file at the specified path. A .zst suffix enables zstd compression. Can be combined with local and remote streaming.
     #[arg(
         short,
         long,
@@ -633,17 +633,17 @@ pub struct Session {
 
 #[derive(Debug, Args)]
 pub struct Cat {
-    /// List of recording files to concatenate. Provide at least two file paths (local files or HTTP(S) URLs). The files will be combined in the order specified. All files must be in asciicast format.
+    /// List of recording files to concatenate. Provide at least two file paths (local files or HTTP(S) URLs). The files will be combined in the order specified. All files must be in asciicast format and may optionally be compressed with zstd.
     #[arg(required = true, num_args = 2.., help = "Recording files to concatenate", long_help)]
     pub file: Vec<String>,
 }
 
 #[derive(Debug, Args)]
 pub struct Convert {
-    /// The source recording to convert. Can be a local file path, HTTP(S) URL for remote files, or '-' to read from standard input. Remote URLs allow converting recordings directly from the web without need for manual downloading. Supported input formats include asciicast v1, v2 and v3.
+    /// The source recording to convert. Can be a local file path, HTTP(S) URL for remote files, or '-' to read from standard input. Remote URLs allow converting recordings directly from the web without need for manual downloading. Supported input formats include asciicast v1, v2 and v3, optionally compressed with zstd.
     pub input: String,
 
-    /// The output path for the converted recording. Can be a file path or '-' to write to standard output.
+    /// The output path for the converted recording. Can be a file path or '-' to write to standard output. A .zst suffix enables zstd compression.
     pub output: String,
 
     /// Specify the format for the converted recording. The default is asciicast-v2. If the output file path ends with .txt, the txt format will be selected automatically unless this option is explicitly specified.
@@ -668,7 +668,7 @@ pub struct Convert {
 
 #[derive(Debug, Args)]
 pub struct Upload {
-    /// The path to the asciicast recording file to upload, in a supported asciicast format (v1, v2, or v3).
+    /// The path to the asciicast recording file to upload, in a supported asciicast format (v1, v2, or v3), optionally compressed with zstd.
     pub file: String,
 
     /// Set a title for the recording that will be stored in the recording metadata and displayed to viewers. For example: --title "Installing Podman on Ubuntu". This option takes precedence over the "title" field from the recording file itself.

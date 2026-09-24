@@ -1,5 +1,12 @@
 # asciinema changelog
 
+## 3.2.1 (2026-06-16)
+
+* Improved error reporting for server API failures - server-provided error messages are now surfaced, with actionable guidance (e.g. running `asciinema auth`)
+* Built release binaries on Ubuntu 22.04 for broader compatibility with older Linux systems (#742)
+* Upgraded the virtual terminal (avt) to the latest version
+* Upgraded dependencies, including security fixes
+
 ## 3.2.0 (2026-03-01)
 
 * Improved querying for terminal theme and version

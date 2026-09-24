@@ -1,6 +1,6 @@
 [package]
 name = "termlog"
-version = "3.2.0"
+version = "3.2.1"
 edition = "2021"
 authors = ["Marcin Kulik <m@ku1ik.com>"]
 homepage = "https://asciinema.org"
@@ -45,6 +45,7 @@ bytes = "1.11"
 base64 = "0.22"
 jsonwebtoken = "9.3"
 sha2 = "0.10"
+zstd = "0.13.3"
 
 [build-dependencies]
 clap = { version = "4.0", features = ["derive", "wrap_help"] }

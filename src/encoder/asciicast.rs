@@ -30,7 +30,7 @@ impl super::Encoder for AsciicastV2Encoder {
         self.inner.event(&event)
     }
 
-    fn flush(&mut self) -> Vec<u8> {
+    fn finish(&mut self) -> Vec<u8> {
         Vec::new()
     }
 }
@@ -63,7 +63,7 @@ impl super::Encoder for AsciicastV3Encoder {
         self.inner.event(&event)
     }
 
-    fn flush(&mut self) -> Vec<u8> {
+    fn finish(&mut self) -> Vec<u8> {
         Vec::new()
     }
 }

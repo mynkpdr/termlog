@@ -65,3 +65,45 @@ impl cli::Cat {
             .ok_or(anyhow!("asciicast v{version} files can't be concatenated"))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs::File;
+
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[test]
+    fn opens_mixed_plain_and_zstd_inputs() {
+        let dir = tempdir().unwrap();
+        let compressed_path = dir.path().join("compressed.bin");
+        let input_path = "tests/casts/minimal-v3.cast";
+        let mut input = File::open(input_path).unwrap();
+        let output = File::create(&compressed_path).unwrap();
+        let mut encoder = zstd::stream::write::Encoder::new(output, 0).unwrap();
+
+        io::copy(&mut input, &mut encoder).unwrap();
+        encoder.finish().unwrap();
+
+        let command = cli::Cat {
+            file: vec![
+                input_path.to_owned(),
+                compressed_path.to_string_lossy().into_owned(),
+            ],
+        };
+
+        let casts = command.open_input_files().unwrap();
+
+        assert_eq!(casts.len(), 2);
+        assert!(casts.iter().all(|cast| cast.version == Version::Three));
+
+        assert_eq!(
+            casts
+                .into_iter()
+                .map(|cast| cast.events.count())
+                .sum::<usize>(),
+            2
+        );
+    }
+}

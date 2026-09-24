@@ -24,7 +24,7 @@
     cargoLock.lockFile = ./Cargo.lock;
     nativeBuildInputs = [ rust ];
 
-    buildInputs = lib.optional stdenv.isDarwin [
+    buildInputs = lib.optionals stdenv.isDarwin [
       libiconv
     ];
 
